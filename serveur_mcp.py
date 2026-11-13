@@ -42,9 +42,13 @@ def _message_api_indisponible(e: OpenFoodFactsError) -> dict:
 
 @mcp.tool()
 async def chercher_produit(nom: str) -> dict:
-    """Cherche des produits alimentaires par nom (5 résultats maximum).
-    Renvoie pour chacun le nom, la marque et le code-barres. Le code-barres
-    sert ensuite à verifier_allergene et verifier_regime."""
+    """Cherche des produits alimentaires par nom ou par marque (5 résultats
+    maximum). À utiliser en premier dès que l'utilisateur nomme un produit
+    sans donner de code-barres : "le Nutella", "des pâtes Barilla",
+    "ce biscuit", "trouve-moi le produit...".
+    Renvoie pour chacun le nom, la marque et le code-barres. Ce code-barres
+    sert ensuite à tous les autres outils (allergènes, régimes, labels,
+    fiche produit, nutrition)."""
     nom = (nom or "").strip()
     if not nom:  # garde-fou : recherche vide
         return {"erreur": "Le nom du produit est vide. Donnez un nom à chercher."}
@@ -62,10 +66,19 @@ async def chercher_produit(nom: str) -> dict:
 
 @mcp.tool()
 async def verifier_allergene(code_barres: str, allergene: str) -> dict:
-    """Indique si un produit contient un allergène, d'après Open Food Facts.
+    """Utilise TOUJOURS cet outil avant de répondre à une question d'allergie
+    ou d'intolérance sur un produit, plutôt que tes connaissances.
+
+    À utiliser dès qu'on parle de : allergie, allergène, allergique,
+    intolérance, "est-ce que ça contient du lait / des oeufs / des
+    cacahuètes / du gluten...", "puis-je en manger si je suis allergique",
+    "des traces de...", "ça peut contenir...", cacahuète, noix, lactose.
     Réponses possibles : "contient", "traces possibles" ou "inconnu".
-    Ne répond JAMAIS "sans risque" : "inconnu" veut dire qu'on ne sait pas.
-    Allergènes acceptés : les 14 allergènes réglementaires de l'UE."""
+    Ne répond JAMAIS "sans risque" : "inconnu" veut dire qu'on ne sait pas,
+    il faut alors conseiller de lire l'emballage.
+    Allergènes acceptés : les 14 allergènes réglementaires de l'UE (gluten,
+    crustacés, oeufs, poisson, arachides, soja, lait, fruits à coque,
+    céleri, moutarde, sésame, sulfites, lupin, mollusques)."""
     code = regles.valider_code_barres(code_barres)
     if code is None:
         return {"erreur": "Code-barres invalide : il faut 8 à 13 chiffres."}
@@ -91,9 +104,15 @@ async def verifier_allergene(code_barres: str, allergene: str) -> dict:
 
 @mcp.tool()
 async def verifier_regime(code_barres: str, regime: str) -> dict:
-    """Estime si un produit convient à un régime : vegan, végétarien ou
-    sans huile de palme. Réponses : "oui (estimé)", "non" ou "inconnu".
-    C'est une estimation automatique, pas une certification."""
+    """Utilise TOUJOURS cet outil avant de répondre à une question de régime
+    alimentaire sur un produit, plutôt que tes connaissances.
+
+    À utiliser dès qu'on parle de : vegan, végétalien, végane, végétarien,
+    "sans viande", "sans produit animalier", "sans huile de palme", palme,
+    "est-ce que je peux en manger si je suis vegan / végétarien".
+    Régimes acceptés : vegan, végétarien, sans huile de palme.
+    Réponses : "oui (estimé)", "non" ou "inconnu". C'est une estimation
+    automatique, pas une certification : le préciser à l'utilisateur."""
     code = regles.valider_code_barres(code_barres)
     if code is None:
         return {"erreur": "Code-barres invalide : il faut 8 à 13 chiffres."}
@@ -127,9 +146,16 @@ def _introuvable() -> dict:
 
 @mcp.tool()
 async def fiche_produit(code_barres: str) -> dict:
-    """Donne la fiche d'un produit : nom, marque, quantité, catégories,
-    origine, lieu de fabrication et URL de la photo. Un champ absent est
-    indiqué "non renseigné" (jamais une valeur inventée)."""
+    """Donne la fiche d'identité d'un produit à partir de son code-barres.
+
+    À utiliser pour : "c'est quoi ce produit", "de quelle marque", "quelle
+    quantité / quel poids / quel format", "dans quelle catégorie", "d'où
+    vient-il", "où est-il fabriqué", "provenance", "origine", "photo",
+    "image de l'emballage".
+    Donne : nom, marque, quantité, catégories, origine, lieu de
+    fabrication et URL de la photo. Un champ absent est indiqué
+    "non renseigné" (jamais une valeur inventée). Pour les allergènes, les
+    régimes ou la nutrition, utiliser plutôt les outils dédiés."""
     code = regles.valider_code_barres(code_barres)
     if code is None:
         return {"erreur": "Code-barres invalide : il faut 8 à 13 chiffres."}
@@ -144,10 +170,19 @@ async def fiche_produit(code_barres: str) -> dict:
 
 @mcp.tool()
 async def verifier_label(code_barres: str, label: str) -> dict:
-    """Indique si un label est signalé sur un produit : bio (AB ou bio
-    européen), commerce équitable, sans gluten ou Label Rouge.
+    """Utilise TOUJOURS cet outil avant de répondre à une question de label ou
+    de certification sur un produit, plutôt que tes connaissances.
+
+    À utiliser dès qu'on parle de : bio, biologique, AB, agriculture
+    biologique, "bio européen", feuille verte, commerce équitable, équitable,
+    Fairtrade, Max Havelaar, "sans gluten", gluten free, Label Rouge,
+    label, certification, certifié, "est-ce que c'est bio ?".
+    Labels acceptés : bio (AB ou bio européen), commerce équitable,
+    sans gluten, Label Rouge.
     Réponses : "présent" ou "non signalé" (jamais "absent").
-    Les labels sont déclarés par des contributeurs : vérifier l'emballage."""
+    Les labels sont déclarés par des contributeurs : vérifier le logo sur
+    l'emballage. Pour "sans gluten" : c'est un label, pas une garantie
+    médicale ; en cas d'allergie, utiliser aussi verifier_allergene."""
     code = regles.valider_code_barres(code_barres)
     if code is None:
         return {"erreur": "Code-barres invalide : il faut 8 à 13 chiffres."}
@@ -176,10 +211,21 @@ async def verifier_label(code_barres: str, label: str) -> dict:
 
 @mcp.tool()
 async def infos_nutrition(code_barres: str) -> dict:
-    """Donne des chiffres sur un produit : Nutri-Score, groupe NOVA, score
-    environnemental, additifs et valeurs pour 100 g (énergie en kcal,
-    matières grasses, sucres, sel). Uniquement des données brutes :
-    aucun conseil de santé, aucun jugement. Valeur absente : "non renseigné"."""
+    """Utilise TOUJOURS cet outil avant de répondre à une question de santé
+    ou de nutrition sur un produit, plutôt que tes connaissances.
+
+    À utiliser dès qu'on parle de : santé, nutrition, calories, kcal,
+    énergie, sucre, sucres, gras, matières grasses, sel, additifs, Nutri-Score,
+    NOVA, ultra-transformé, score environnemental, "est-ce bon pour la
+    santé ?", "est-ce sain ?", "est-ce light ?", "ça fait grossir ?",
+    "combien de calories / de sucre ?", "valeurs nutritionnelles".
+
+    Donne : Nutri-Score, groupe NOVA, score environnemental, additifs et
+    valeurs pour 100 g (énergie en kcal, matières grasses, sucres, sel).
+    Il faut le code-barres (le trouver d'abord avec chercher_produit).
+    Ne renvoie QUE des chiffres issus d'Open Food Facts : aucun conseil
+    médical, aucun jugement. Rapporte ces chiffres tels quels, sans dire
+    si c'est "bon" ou "mauvais" pour la santé. Valeur absente : "non renseigné"."""
     code = regles.valider_code_barres(code_barres)
     if code is None:
         return {"erreur": "Code-barres invalide : il faut 8 à 13 chiffres."}
