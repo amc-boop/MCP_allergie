@@ -6,7 +6,23 @@ Aucune clé d'API n'est nécessaire pour la lecture.
 
 ## Outils exposés
 
-Aucun outil pour l'instant (voir « Structure » pour en ajouter un).
+| Outil | Rôle |
+|---|---|
+| `chercher_produit(nom)` | Cherche par nom (5 résultats max) : nom, marque, code-barres. |
+| `verifier_allergene(code_barres, allergene)` | Répond « contient », « traces possibles » ou « inconnu ». Jamais « sans risque ». |
+| `verifier_regime(code_barres, regime)` | vegan, végétarien ou sans huile de palme : « oui (estimé) », « non » ou « inconnu ». Estimation, pas une certification. |
+
+| `fiche_produit(code_barres)` | Nom, marque, quantité, catégories, origine, lieu de fabrication, URL de la photo. Champ absent : « non renseigné ». |
+| `verifier_label(code_barres, label)` | bio (AB ou bio européen), commerce équitable, sans gluten, Label Rouge : « présent » ou « non signalé ». Labels déclarés par des contributeurs : vérifier l'emballage. |
+| `infos_nutrition(code_barres)` | Nutri-Score, groupe NOVA, score environnemental, additifs, valeurs pour 100 g (kcal, matières grasses, sucres, sel). Uniquement des chiffres, aucun conseil de santé. |
+
+Les six outils sont en lecture seule. Les règles de décision sont dans `regles.py`.
+
+## Tests
+
+```bash
+uv run pytest
+```
 
 ## Prérequis
 
@@ -57,6 +73,8 @@ uv run mcp dev serveur_mcp.py
 ├── pyproject.toml           # Dépendances (lu par uv)
 ├── serveur_mcp.py           # Point d'entrée : serveur MCP et définition des outils
 ├── client_openfoodfacts.py  # Appels HTTP à l'API Open Food Facts + mise en forme des réponses
+├── regles.py                # Règles de décision allergènes / régimes (sans réseau)
+├── tests/                   # Tests pytest (API simulée)
 └── README.md
 ```
 

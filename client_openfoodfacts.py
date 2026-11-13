@@ -42,6 +42,35 @@ CHAMPS_DETAIL = CHAMPS_RESUME + [
     "nutriments",
 ]
 
+# Ajout : champs pour fiche_produit, verifier_label et infos_nutrition
+CHAMPS_FICHE = [
+    "code",
+    "product_name",
+    "brands",
+    "quantity",
+    "categories",
+    "origins",
+    "manufacturing_places",
+    "image_front_url",
+]
+CHAMPS_LABELS = ["code", "labels_tags"]
+CHAMPS_NUTRITION = [
+    "code",
+    "nutriscore_grade",
+    "nova_group",
+    "ecoscore_grade",  # score environnemental (nom du champ vérifié sur l'API)
+    "additives_tags",
+    "nutriments",
+]
+
+# Ajout : champs bruts pour verifier_allergene et verifier_regime
+CHAMPS_VERIFICATION = [
+    "code",
+    "allergens_tags",
+    "traces_tags",
+    "ingredients_analysis_tags",
+]
+
 NUTRIMENTS_UTILES = {
     "energy-kcal_100g": "energie_kcal",
     "fat_100g": "matieres_grasses_g",
@@ -138,6 +167,39 @@ class OpenFoodFactsClient:
         if data.get("status") != 1 or not data.get("product"):
             return None
         return detailler(data["product"])
+
+    # --- Ajout : données brutes pour les vérifications (lecture seule) --
+    async def produit_brut(self, code_barres: str) -> dict | None:
+        """Renvoie les étiquettes telles que l'API les donne, sans les
+        modifier (ex. "en:milk"). None si le produit est introuvable."""
+        params = {"fields": ",".join(CHAMPS_VERIFICATION)}
+        data = await self._get(
+            f"{URL_OPEN_FOOD_FACTS}/api/v2/product/{code_barres}.json", params
+        )
+        if data.get("status") != 1 or not data.get("product"):
+            return None
+        return data["product"]
+
+    # --- Ajout : lecture de champs précis (GET uniquement) --------------
+    async def _produit_champs(self, code_barres: str, champs: list[str]) -> dict | None:
+        """Lit seulement les champs demandés, sans les modifier.
+        None si le produit est introuvable (status différent de 1)."""
+        data = await self._get(
+            f"{URL_OPEN_FOOD_FACTS}/api/v2/product/{code_barres}.json",
+            {"fields": ",".join(champs)},
+        )
+        if data.get("status") != 1 or not data.get("product"):
+            return None
+        return data["product"]
+
+    async def produit_fiche(self, code_barres: str) -> dict | None:
+        return await self._produit_champs(code_barres, CHAMPS_FICHE)
+
+    async def produit_labels(self, code_barres: str) -> dict | None:
+        return await self._produit_champs(code_barres, CHAMPS_LABELS)
+
+    async def produit_nutrition(self, code_barres: str) -> dict | None:
+        return await self._produit_champs(code_barres, CHAMPS_NUTRITION)
 
 
 # --- Mise en forme des réponses ------------------------------------------
